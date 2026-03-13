@@ -18,6 +18,7 @@ var userConnection *gorm.DB
 
 func init() {
 	var err error
+	//TODO: 从配置文件或环境变量加载数据库连接信息
 	userConnection, err = gorm.Open(mysql.Open("root:kami@tcp(localhost:3306)/cloud-kaho?charset=utf8mb4&parseTime=True"), &gorm.Config{})
 	if err != nil {
 		panic(err)
