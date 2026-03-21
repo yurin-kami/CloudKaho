@@ -7,6 +7,7 @@ type FileMeta struct {
 	StoragePath    string `gorm:"not null" json:"storage_path"` //minio or oss
 	ReferenceCount int    `gorm:"not null" json:"reference_count"`
 	CreatedAt      int64  `gorm:"autoCreateTime" json:"created_at"`
+	Status         int    `gorm:"not null;index" json:"status"` // 1=Active, 2=Uploading, 3=Deleted
 }
 
 type UserFileRelation struct {
