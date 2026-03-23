@@ -125,7 +125,7 @@ func createActiveFileMeta(ctx context.Context, tx *gorm.DB, fileHash string, fil
 	return &newFileMeta, nil
 }
 
-func GetUserIDFromContext(c *gin.Context) (uint, bool) {
+func getUserIDFromContext(c *gin.Context) (uint, bool) {
 	userIDValue, exists := c.Get("userID")
 	if !exists {
 		return 0, false
@@ -166,7 +166,7 @@ func UploadSmallFile(fileConnection *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		userID, exists := GetUserIDFromContext(c)
+		userID, exists := getUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
@@ -306,7 +306,7 @@ func InitMultipartUpload(redisClient *redis.Client, fileConnection *gorm.DB) gin
 		}
 
 		// 获取用户 ID
-		userID, exists := GetUserIDFromContext(c)
+		userID, exists := getUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
@@ -426,7 +426,7 @@ func PartPresignURL(redisClient *redis.Client, fileConnection *gorm.DB) gin.Hand
 		}
 
 		// 获取用户 ID
-		userID, exists := GetUserIDFromContext(c)
+		userID, exists := getUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
@@ -509,7 +509,7 @@ func CompleteMultipartUpload(redisClient *redis.Client, fileConnection *gorm.DB)
 		}
 
 		// 获取用户 ID
-		userID, exists := GetUserIDFromContext(c)
+		userID, exists := getUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return

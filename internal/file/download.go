@@ -31,7 +31,7 @@ func DownloadFile(redisClient *redis.Client, fileConnection *gorm.DB) gin.Handle
 			return
 		}
 
-		userID, exists := GetUserIDFromContext(c)
+		userID, exists := getUserIDFromContext(c)
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
