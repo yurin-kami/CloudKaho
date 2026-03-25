@@ -2,11 +2,12 @@ package file
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yurin-kami/CloudKaho/models"
+	"github.com/yurin-kami/CloudKaho/service"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +20,6 @@ func DeleteFile(fileConnection *gorm.DB) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 		defer cancel()
 
-		tx := fileConnection.WithContext(ctx).Begin()
 		var req DeleteRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "Invalid request", "details": err.Error()})
@@ -35,40 +35,15 @@ func DeleteFile(fileConnection *gorm.DB) gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "Unauthorized"})
 			return
 		}
-		//检查用户是否有权限删除这个文件
-		var relation models.UserFileRelation
-		if err := fileConnection.WithContext(ctx).Where("user_id = ? AND file_meta_id = ?", userID, req.FileID).First(&relation).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found or no permission"})
-				tx.Rollback()
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
-			tx.Rollback()
-			return
-		}
-		//标记用户文件关系为删除
-		var userFile models.UserFileRelation
-		if err := tx.Model(&userFile).WithContext(ctx).Where("user_id = ? AND file_id = ?", userID, req.FileID).Update("is_deleted", true).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
-			tx.Rollback()
-			return
-		}
 
-		//减少文件元的引用计数
-		var fileMeta models.FileMeta
-		if err := tx.Model(&fileMeta).WithContext(ctx).Where("file_id = ?", req.FileID).First(&fileMeta).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
-			tx.Rollback()
-			return
-		}
-		if fileMeta.ReferenceCount > 0 {
-			if err := tx.Model(&fileMeta).WithContext(ctx).Where("file_id = ?", req.FileID).Update("reference_count", fileMeta.ReferenceCount-1).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
-				tx.Rollback()
+		if err := service.DeleteFileForUser(ctx, fileConnection, userID, req.FileID); err != nil {
+			if errors.Is(err, service.ErrForbidden) || errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found or no permission"})
 				return
 			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+			return
 		}
-		tx.Commit()
 		c.JSON(http.StatusOK, gin.H{"code": "0", "data": gin.H{
 			"file_id": req.FileID,
 			"message": "file marked as deleted successfully",

@@ -2,16 +2,13 @@ package file
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
-	"net/url"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-	"github.com/yurin-kami/CloudKaho/models"
+	"github.com/yurin-kami/CloudKaho/service"
 	"gorm.io/gorm"
 )
 
@@ -36,50 +33,21 @@ func DownloadFile(redisClient *redis.Client, fileConnection *gorm.DB) gin.Handle
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
-		//检查用户是否有权限下载这个文件
-		var relation models.UserFileRelation
-		if err := fileConnection.WithContext(ctx).Preload("FileMeta").
-			Where("user_id = ? AND file_meta_id = ? AND is_deleted = ?", userID, req.FileID, false).
-			First(&relation).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
+		downloadURL, expiresIn, err := service.GetDownloadURLForUser(ctx, fileConnection, userID, req.FileID, req.FileName)
+		if err != nil {
+			if errors.Is(err, service.ErrForbidden) {
 				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found or no permission"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+				return
 			}
-			return
-		}
-
-		//检查文件元状态信息
-		var fileMeta models.FileMeta
-		if err := fileConnection.WithContext(ctx).Where("file_id = ?", req.FileID).First(&fileMeta).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
+			if errors.Is(err, service.ErrNotFound) {
 				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found"})
-			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+				return
 			}
-			return
-		}
-		if fileMeta.Status != 1 {
-			c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file is not available for download (status not active)"})
-			return
-		}
-
-		//生成预签名URL
-		s3Client, err := newS3Client(ctx)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "failed to create s3 client"})
-			return
-		}
-
-		presignClient := s3.NewPresignClient(s3Client)
-		presignExpires := 15 * time.Minute
-		presignResult, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-			Bucket:                     aws.String(""), //TODO: load bucket name from config
-			Key:                        aws.String(fileMeta.StoragePath),
-			ResponseContentDisposition: aws.String(fmt.Sprintf(`attachment; filename="%s"`, url.QueryEscape(req.FileName))),
-		}, s3.WithPresignExpires(presignExpires))
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "failed to generate download url", "details": err.Error()})
+			if errors.Is(err, service.ErrInvalid) {
+				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file is not available for download (status not active)"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
 			return
 		}
 		//重定向到预签名URL
@@ -89,9 +57,9 @@ func DownloadFile(redisClient *redis.Client, fileConnection *gorm.DB) gin.Handle
 			"code":    "0",
 			"message": "success",
 			"data": gin.H{
-				"download_url": presignResult.URL,
+				"download_url": downloadURL,
 				"file_name":    req.FileName,
-				"expires_in":   presignExpires.Seconds(),
+				"expires_in":   expiresIn.Seconds(),
 			},
 		})
 	}

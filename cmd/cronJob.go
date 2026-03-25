@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/yurin-kami/CloudKaho/models"
+	"github.com/yurin-kami/CloudKaho/service"
 	"gorm.io/gorm"
 )
 
@@ -22,10 +22,10 @@ func StartCleanupJob(fileConnection *gorm.DB, redisClient *redis.Client) {
 func cleanupStaleUploads(fileConnection *gorm.DB, redisClient *redis.Client) {
 	ctx := context.Background()
 
-	var staleFiles []models.FileMeta
 	thresholdTime := time.Now().Add(-26 * time.Hour)
 
-	if err := fileConnection.Where("status = ? AND create_at < ?", "2", thresholdTime).Limit(100).Find(&staleFiles).Error; err != nil {
+	staleFiles, err := service.FindStaleUploads(ctx, fileConnection, 2, thresholdTime, 100)
+	if err != nil {
 		log.Printf("Error fetching stale uploads: %v", err)
 		return
 	}
@@ -36,7 +36,18 @@ func cleanupStaleUploads(fileConnection *gorm.DB, redisClient *redis.Client) {
 
 	log.Printf("Found %d stale uploads, cleaning up...", len(staleFiles))
 
-	for _, fileMeta := range staleFiles {
-		fileConnection.Model(&fileMeta).WithContext(ctx).Update("status", 3)
+	if err := service.WithTxRetry(ctx, fileConnection, 3, func(tx *gorm.DB) error {
+		for _, fileMeta := range staleFiles {
+			if err := service.UpdateFileMetaStatus(ctx, tx, fileMeta.FileID, 3); err != nil {
+				log.Printf("Error updating stale upload status: %v", err)
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		log.Printf("Error committing stale upload updates: %v", err)
 	}
+
 }
+
+

@@ -4,10 +4,13 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/yurin-kami/CloudKaho/config"
 	"github.com/yurin-kami/CloudKaho/models"
 )
 
-const JWTSecret = "KahoKoyanagi"
+func GetJWTSecret() string {
+	return config.Get().JWT.Secret
+}
 
 func GenerateAccessToken(user models.User, tokenType string, expire time.Duration) (string, error) {
 	claims := jwt.MapClaims{
@@ -18,6 +21,5 @@ func GenerateAccessToken(user models.User, tokenType string, expire time.Duratio
 		"exp":   time.Now().Add(expire).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	//TODO: load secret from config or env
-	return token.SignedString([]byte(JWTSecret))
+	return token.SignedString([]byte(GetJWTSecret()))
 }

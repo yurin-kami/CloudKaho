@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yurin-kami/CloudKaho/config"
 	"github.com/yurin-kami/CloudKaho/internal/utils"
 	"github.com/yurin-kami/CloudKaho/models"
+	"github.com/yurin-kami/CloudKaho/service"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -18,8 +20,8 @@ var userConnection *gorm.DB
 
 func init() {
 	var err error
-	//TODO: 从配置文件或环境变量加载数据库连接信息
-	userConnection, err = gorm.Open(mysql.Open("root:kami@tcp(localhost:3306)/cloud-kaho?charset=utf8mb4&parseTime=True"), &gorm.Config{})
+	cfg := config.MustLoad()
+	userConnection, err = gorm.Open(mysql.Open(cfg.DB.DSN), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -53,8 +55,7 @@ func UserRegister() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
-		var registeredUser models.User
-		err := userConnection.WithContext(ctx).Where("email = ?", req.Email).First(&registeredUser).Error
+		_, err := service.FindUserByEmail(ctx, userConnection, req.Email)
 		if err == nil {
 			c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 			return
@@ -69,7 +70,7 @@ func UserRegister() gin.HandlerFunc {
 			HashedPassword: hashPassword(req.Password),
 			Nickname:       req.Nickname,
 		}
-		if err := userConnection.WithContext(ctx).Create(&newUser).Error; err != nil {
+		if err := service.CreateUser(ctx, userConnection, &newUser); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "failed to register user"})
 			return
 		}
@@ -92,8 +93,7 @@ func UserLogin() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
-		var user models.User
-		err := userConnection.WithContext(ctx).Where("email = ? AND hashed_password = ?", req.Email, hashPassword(req.Password)).First(&user).Error
+		user, err := service.FindUserByEmailAndPassword(ctx, userConnection, req.Email, hashPassword(req.Password))
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "invalid credentials"})
 			return
@@ -115,7 +115,7 @@ func UserLogin() gin.HandlerFunc {
 
 		user.AccessToken = accessToken
 		user.RefreshToken = refreshToken
-		if err := userConnection.WithContext(ctx).Save(&user).Error; err != nil {
+		if err := service.UpdateUserTokens(ctx, userConnection, &user); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "failed to update user tokens"})
 			return
 		}
@@ -151,8 +151,7 @@ func GetUser() gin.HandlerFunc {
 			return
 		}
 
-		var user models.User
-		err := userConnection.WithContext(ctx).Where("id = ?", userID).First(&user).Error
+		user, err := service.FindUserByID(ctx, userConnection, userID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"code": "1", "error": "user not found"})
 			return

@@ -19,8 +19,8 @@ func FileRoute(router *gin.Engine, redisClient *redis.Client, fileConnection *go
 	multipartGroup.POST("/complete", middleware.AuthRequired(), file.CompleteMultipartUpload(redisClient, fileConnection)) // 完成分片上传，合并分片
 	fileGroup.GET("/download/:file_id", middleware.AuthRequired(), file.DownloadFile(redisClient, fileConnection))
 	fileGroup.POST("/delete", middleware.AuthRequired(), file.DeleteFile(fileConnection))
-	fileGroup.PUT("/rename", middleware.AuthRequired(), file.RenameFile())
-	fileGroup.POST("/move", middleware.AuthRequired(), file.MoveFile())
-	fileGroup.GET("/list/:folder_id", middleware.AuthRequired(), file.ListFiles())
-	fileGroup.GET("/share/:file_id", middleware.AuthRequired(), file.ShareFile())
+	fileGroup.PUT("/rename", middleware.AuthRequired(), file.RenameFile(fileConnection))
+	fileGroup.POST("/move", middleware.AuthRequired(), file.MoveFile(fileConnection))
+	fileGroup.GET("/list/:folder_id", middleware.AuthRequired(), file.ListFiles(fileConnection))
+	fileGroup.POST("/share", middleware.AuthRequired(), file.ShareFile(fileConnection))
 }

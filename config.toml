@@ -1,0 +1,31 @@
+[db]
+# TODO: load in config - MySQL DSN
+# 示例: root:password@tcp(localhost:3306)/cloud-kaho?charset=utf8mb4&parseTime=True
+#dsn = ""
+dsn = "root:kami@tcp(localhost:3306)/cloud-kaho?charset=utf8mb4&parseTime=True"
+
+[jwt]
+# TODO: load in config - JWT secret
+#secret = ""
+secret = "KahoKoyanagi"
+
+[s3]
+# TODO: load in config - S3 settings
+#region = "cn-east-1"
+#region = ""
+region = "cn-east-1"
+#endpoint = "https://s3drive.cstcloud.cn"
+endpoint = "https://s3drive.cstcloud.cn"
+#bucket = "your-bucket-name"
+bucket = "your-bucket-name"
+#use_path_style = true
+use_path_style = true
+
+[redis]
+# TODO: load in config - Redis settings
+#addr = "localhost:6379"
+addr = "localhost:6379"
+#password = ""
+password = ""
+#db = 0
+db = 0

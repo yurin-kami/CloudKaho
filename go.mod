@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/pelletier/go-toml/v2 v2.2.4
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
 )
