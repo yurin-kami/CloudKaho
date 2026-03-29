@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"context"
@@ -49,5 +49,3 @@ func cleanupStaleUploads(fileConnection *gorm.DB, redisClient *redis.Client) {
 	}
 
 }
-
-

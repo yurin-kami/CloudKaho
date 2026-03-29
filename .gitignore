@@ -1,0 +1,25 @@
+# Local configuration / secrets
+config.toml
+*.local.toml
+.env
+.env.*
+
+# Local infra / generated assets (project convention)
+docker-compose.yml
+db/
+openapi.yaml
+
+# Build outputs
+bin/
+dist/
+*.out
+coverage.out
+
+# Editor / workspace metadata
+.vscode/
+.idea/
+.ocx
+.opencode/
+
+# Repository internals
+.git/
