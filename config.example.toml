@@ -1,0 +1,42 @@
+# CloudKaho 配置示例（可运行的占位配置）
+#
+# 使用方式：
+# 1) 将本文件复制为仓库根目录下的 `config.toml`（注意：代码固定从「当前工作目录」读取 config.toml）。
+# 2) 运行服务时请确保工作目录为仓库根目录（即包含 config.toml 的目录）。
+#
+# 安全说明：
+# - 本文件仅包含占位值，不包含任何真实 secret。
+# - 请在本地 `config.toml` 中填写你自己的敏感信息；不要提交 `config.toml` 到仓库。
+
+[db]
+# 必填：MySQL DSN。请按你的本地/测试环境填写。
+# 参考格式（占位）："user:password@tcp(127.0.0.1:3306)/cloudkaho?charset=utf8mb4&parseTime=True&loc=Local"
+dsn = "CHANGE_ME_DB_DSN"
+
+[jwt]
+# 必填：JWT 签名密钥（至少 32+ 字符随机字符串）。
+secret = "CHANGE_ME_JWT_SECRET"
+
+[s3]
+# 可选：AWS 区域。若为空，将使用 AWS SDK 的默认行为（如环境变量/共享配置）。
+region = "us-east-1"
+
+# 可选：S3 Endpoint。若你使用 MinIO/本地对象存储，请填写如 "http://127.0.0.1:9000"。
+# 留空则使用 AWS 默认 Endpoint。
+endpoint = ""
+
+# 业务通常需要：S3 Bucket 名称（占位）。若你的功能不涉及文件存储，可先留空。
+bucket = "CHANGE_ME_S3_BUCKET"
+
+# 可选：是否使用 Path Style（MinIO/部分代理常需要）。
+use_path_style = false
+
+[redis]
+# 必填：Redis 地址
+addr = "127.0.0.1:6379"
+
+# 可选：Redis 密码；无密码可留空
+password = ""
+
+# 可选：Redis DB（默认 0）
+db = 0
