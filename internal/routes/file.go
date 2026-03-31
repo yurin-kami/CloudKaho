@@ -17,7 +17,7 @@ func FileRoute(router *gin.Engine, redisClient *redis.Client, fileConnection *go
 	multipartGroup.POST("/init", middleware.AuthRequired(), file.InitMultipartUpload(redisClient, fileConnection))         // 初始化分片上传，返回UploadID
 	multipartGroup.POST("/presign", middleware.AuthRequired(), file.PartPresignURL(redisClient, fileConnection))           // 获取分片上传的预签名URL
 	multipartGroup.POST("/complete", middleware.AuthRequired(), file.CompleteMultipartUpload(redisClient, fileConnection)) // 完成分片上传，合并分片
-	fileGroup.GET("/download/:file_id", middleware.AuthRequired(), file.DownloadFile(redisClient, fileConnection))
+	fileGroup.POST("/download", middleware.AuthRequired(), file.DownloadFile(redisClient, fileConnection))
 	fileGroup.POST("/delete", middleware.AuthRequired(), file.DeleteFile(fileConnection))
 	fileGroup.PUT("/rename", middleware.AuthRequired(), file.RenameFile(fileConnection))
 	fileGroup.POST("/move", middleware.AuthRequired(), file.MoveFile(fileConnection))

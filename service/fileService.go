@@ -177,6 +177,6 @@ func IncrementFileShareViews(ctx context.Context, db *gorm.DB, shareID uint) err
 
 func FindStaleUploads(ctx context.Context, db *gorm.DB, status int, thresholdTime time.Time, limit int) ([]models.FileMeta, error) {
 	var staleFiles []models.FileMeta
-	err := db.WithContext(ctx).Where("status = ? AND create_at < ?", status, thresholdTime).Limit(limit).Find(&staleFiles).Error
+	err := db.WithContext(ctx).Where("status = ? AND created_at < ?", status, thresholdTime).Limit(limit).Find(&staleFiles).Error
 	return staleFiles, err
 }

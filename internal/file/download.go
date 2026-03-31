@@ -3,7 +3,9 @@ package file
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,8 +15,8 @@ import (
 )
 
 type DownloadRequest struct {
-	FileID   uint   `json:"file_id" validate:"required"`
-	FileName string `json:"file_name" validate:"required"`
+	FileID   uint   `json:"file_id" binding:"required,gt=0"`
+	FileName string `json:"file_name" binding:"required"`
 }
 
 func DownloadFile(redisClient *redis.Client, fileConnection *gorm.DB) gin.HandlerFunc {
@@ -24,30 +26,36 @@ func DownloadFile(redisClient *redis.Client, fileConnection *gorm.DB) gin.Handle
 
 		var req DownloadRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": err.Error()})
+			return
+		}
+		req.FileName = strings.TrimSpace(req.FileName)
+		if req.FileName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": "file_name cannot be empty"})
 			return
 		}
 
 		userID, exists := getUserIDFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
 		}
 		downloadURL, expiresIn, err := service.GetDownloadURLForUser(ctx, fileConnection, userID, req.FileID, req.FileName)
 		if err != nil {
 			if errors.Is(err, service.ErrForbidden) {
-				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found or no permission"})
+				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "forbidden", "details": err.Error()})
 				return
 			}
 			if errors.Is(err, service.ErrNotFound) {
-				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found"})
+				c.JSON(http.StatusNotFound, gin.H{"code": "1", "error": "not found", "details": err.Error()})
 				return
 			}
 			if errors.Is(err, service.ErrInvalid) {
-				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file is not available for download (status not active)"})
+				c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": err.Error()})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+			log.Printf("download file internal error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "internal error", "details": "internal server error"})
 			return
 		}
 		//重定向到预签名URL
