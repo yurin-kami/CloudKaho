@@ -9,7 +9,7 @@ import (
 )
 
 func FileRoute(router *gin.Engine, redisClient *redis.Client, fileConnection *gorm.DB) {
-	fileGroup := router.Group("/file")
+	fileGroup := router.Group("/api/file")
 	// fileGroup.POST("/upload", middleware.AuthRequired(), file.UploadFile())
 	uploadGroup := fileGroup.Group("/upload")
 	multipartGroup := uploadGroup.Group("/multipart")

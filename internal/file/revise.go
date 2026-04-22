@@ -2,8 +2,8 @@ package file
 
 import (
 	"context"
-	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,14 +12,14 @@ import (
 )
 
 type RenameRequest struct {
-	FileID   uint   `json:"file_id" validate:"required"`
-	NewName  string `json:"new_name" validate:"required"`
-	FolderID uint   `json:"folder_id" validate:"required"`
+	FileID   uint   `json:"file_id" binding:"required,gt=0"`
+	NewName  string `json:"new_name" binding:"required"`
+	FolderID uint   `json:"folder_id" binding:"required,gt=0"`
 }
 
 type MoveRequest struct {
-	FileID   uint `json:"file_id" validate:"required"`
-	FolderID uint `json:"folder_id" validate:"required"`
+	FileID   uint `json:"file_id" binding:"required,gt=0"`
+	FolderID uint `json:"folder_id" binding:"required,gt=0"`
 }
 
 func RenameFile(fileConnection *gorm.DB) gin.HandlerFunc {
@@ -29,22 +29,23 @@ func RenameFile(fileConnection *gorm.DB) gin.HandlerFunc {
 
 		var req RenameRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "Invalid request", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": err.Error()})
+			return
+		}
+		req.NewName = strings.TrimSpace(req.NewName)
+		if req.NewName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": "new_name cannot be empty"})
 			return
 		}
 
 		userID, exists := getUserIDFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "Unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
 		}
 
 		if err := service.RenameFileForUser(ctx, fileConnection, userID, req.FileID, req.NewName, req.FolderID); err != nil {
-			if errors.Is(err, service.ErrConflict) {
-				c.JSON(http.StatusConflict, gin.H{"code": "1", "error": "file with the same name already exists in the target folder"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+			writeSentinelError(c, err)
 			return
 		}
 
@@ -66,22 +67,18 @@ func MoveFile(fileConnection *gorm.DB) gin.HandlerFunc {
 
 		var req MoveRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "Invalid request", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": err.Error()})
 			return
 		}
 
 		userID, exists := getUserIDFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "Unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
 		}
 
 		if err := service.MoveFileForUser(ctx, fileConnection, userID, req.FileID, req.FolderID); err != nil {
-			if errors.Is(err, service.ErrConflict) {
-				c.JSON(http.StatusConflict, gin.H{"code": "1", "error": "file with the same name already exists in the target folder"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+			writeSentinelError(c, err)
 			return
 		}
 

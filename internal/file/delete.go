@@ -2,7 +2,6 @@ package file
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 )
 
 type DeleteRequest struct {
-	FileID uint `json:"file_id" validate:"required"`
+	FileID uint `json:"file_id" binding:"required,gt=0"`
 }
 
 func DeleteFile(fileConnection *gorm.DB) gin.HandlerFunc {
@@ -22,26 +21,22 @@ func DeleteFile(fileConnection *gorm.DB) gin.HandlerFunc {
 
 		var req DeleteRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "Invalid request", "details": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"code": "1", "error": "invalid request", "details": err.Error()})
 			return
 		}
 
 		userID, exists := getUserIDFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "Unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
 		}
 		if userID == 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "Unauthorized"})
+			c.JSON(http.StatusUnauthorized, gin.H{"code": "1", "error": "unauthorized"})
 			return
 		}
 
 		if err := service.DeleteFileForUser(ctx, fileConnection, userID, req.FileID); err != nil {
-			if errors.Is(err, service.ErrForbidden) || errors.Is(err, gorm.ErrRecordNotFound) {
-				c.JSON(http.StatusForbidden, gin.H{"code": "1", "error": "file not found or no permission"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "1", "error": "database error"})
+			writeSentinelError(c, err)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"code": "0", "data": gin.H{

@@ -17,11 +17,8 @@ func CreateUser(ctx context.Context, db *gorm.DB, user *models.User) error {
 	return db.WithContext(ctx).Create(user).Error
 }
 
-func FindUserByEmailAndPassword(ctx context.Context, db *gorm.DB, email string, hashedPassword string) (models.User, error) {
-	var user models.User
-	err := db.WithContext(ctx).Where("email = ? AND hashed_password = ?", email, hashedPassword).First(&user).Error
-	return user, err
-}
+// FindUserByEmailAndPassword - 已废弃,迁移到 bcrypt 后不再使用
+// 保留此注释以说明旧函数已被移除
 
 func UpdateUserTokens(ctx context.Context, db *gorm.DB, user *models.User) error {
 	return db.WithContext(ctx).Save(user).Error
@@ -31,4 +28,11 @@ func FindUserByID(ctx context.Context, db *gorm.DB, userID uint) (models.User, e
 	var user models.User
 	err := db.WithContext(ctx).Where("id = ?", userID).First(&user).Error
 	return user, err
+}
+
+// UpdateUserPasswordHash 更新用户密码哈希 (用于迁移)
+func UpdateUserPasswordHash(ctx context.Context, db *gorm.DB, userID uint, newHash string) error {
+	return db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("hashed_password", newHash).Error
 }
